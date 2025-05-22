@@ -3,6 +3,8 @@ import yaml
 import sqlite3
 import pandas as pd
 
+#TODO: Check why it only produces files with Variables. Fix bug.
+
 def load_config_file(directory, file):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(base_dir, "config.yaml")
