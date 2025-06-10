@@ -3,8 +3,6 @@ import yaml
 import sqlite3
 import pandas as pd
 
-#TODO: Check why it only produces files with Variables. Fix bug.
-
 def load_config_file(directory, file):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(base_dir, "config.yaml")
@@ -17,10 +15,11 @@ db_filepath = load_config_file('DB', 'current_db')
 def connect_db():
     return sqlite3.connect(db_filepath)
 
-def read_file(filename):
+def read_yaml_file(filename):
     item_map = {}
     with open(filename, 'r') as f:
         config = yaml.safe_load(f)
+
     for entry in config.get('files', []):
         item = entry.get('item')
         names = entry.get('name', [])
@@ -29,6 +28,7 @@ def read_file(filename):
             'table_name': names,
             'variables': added_vars
         }
+    print(item_map)
     return item_map
 
 def get_columns_from_table(table_name):
@@ -45,7 +45,8 @@ def prepare_tables_to_export(file_map):
     query = "SELECT name FROM sqlite_master WHERE type='table';"
     all_tables = pd.read_sql_query(query, conn)['name'].tolist()
 
-    for item_data in file_map.values():
+    for item_number, item_data in file_map.items():
+
         table_names = item_data.get('table_name', [])
         if isinstance(table_names, str):
             table_names = [table_names]
@@ -63,27 +64,34 @@ def prepare_tables_to_export(file_map):
                 print(f"Warning: Table '{table}' not found in DB. Skipping.")
                 continue
             if not variables_to_add:
-                tables_to_export.append({'table': table, 'columns': None})
+                tables_to_export.append({
+                    'item': item_number,
+                    'table': table,
+                    'columns': None
+                })
             else:
                 cols = get_columns_from_table(table)
                 base_cols = cols[:10]
                 filter_cols = [c for c in variables_to_add if c in cols and c not in base_cols]
                 selected_cols = base_cols + filter_cols
-                tables_to_export.append({'table': table, 'columns': selected_cols})
+                tables_to_export.append({
+                    'item': item_number,
+                    'table': table,
+                    'columns': selected_cols
+                })
 
-        return tables_to_export
+    return tables_to_export
 
 
 def export_sqlite_tables_to_csv(db_path, file_map, output_dir):
 
     conn = connect_db()
     tables_to_export = prepare_tables_to_export(file_map)
-    print("prepared_tables:")
 
     os.makedirs(output_dir, exist_ok=True)
 
     for entry in tables_to_export:
-
+        item = entry['item']
         table = entry['table']
         columns = entry['columns']
 
@@ -94,8 +102,8 @@ def export_sqlite_tables_to_csv(db_path, file_map, output_dir):
             query = f'SELECT {cols_sql} FROM "{table}"'
 
         df = pd.read_sql_query(query, conn)
-        out_path_headers = os.path.join(output_dir, f"ITEM_1_{table}.csv")
-        out_path_without_headers = os.path.join(output_dir, f"ITEM_1_{table}_no_headers.csv")
+        out_path_headers = os.path.join(output_dir, f"ITEM_{item}_{table}.csv")
+        out_path_without_headers = os.path.join(output_dir, f"ITEM_{item}_{table}_no_headers.csv")
 
         df.to_csv(out_path_headers, index=False)
         df.to_csv(out_path_without_headers, index=False, header=False)
@@ -106,14 +114,14 @@ def export_sqlite_tables_to_csv(db_path, file_map, output_dir):
 
 
 def main():
-    filepath_requirements_id_10 = load_config_file('data_requirements', 'id_10')
-    filepath_release_id_10 = load_config_file('data_release', 'id_10')
+    filepath_requirements_id_24 = load_config_file('data_requirements', 'input_release_num_24')
+    filepath_release_id_24_original = load_config_file('data_release', 'output_release_num_24')
 
-    table_dict = read_file(filepath_requirements_id_10)
+    table_dict = read_yaml_file(filepath_requirements_id_24)
     export_sqlite_tables_to_csv(
-        db_path = db_filepath,
-        file_map = table_dict,
-        output_dir = filepath_release_id_10
+        db_path=db_filepath,
+        file_map=table_dict,
+        output_dir=filepath_release_id_24_original
     )
 
 if __name__ == '__main__':
