@@ -2,7 +2,10 @@ DB:
   current_db:
 
 data_requirements:
-  input_release_num_XX:
+  input_release_num_xx:
 
 data_release:
-  output_release_num_XX:
+  output_release_num_xx:
+
+filters:
+  baseline_ids_directory:
