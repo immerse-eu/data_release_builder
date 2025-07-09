@@ -146,7 +146,7 @@ def main():
         output_dir=filepath_release_id_24
     )
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_24)
-    remove_header_from_csv(filepath_release_id_19)
+    remove_header_from_csv(filepath_release_id_24)
 
 
 if __name__ == '__main__':
