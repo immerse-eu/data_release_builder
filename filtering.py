@@ -11,7 +11,7 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
     for filename in os.listdir(source_path):
         if filename.endswith('.csv') and not filename.endswith('_no_headers.csv'):
             file_path = os.path.join(source_path, filename)
-            df = pd.read_csv(file_path, sep=';')
+            df = pd.read_csv(file_path, sep=',')
 
             if 'participant_identifier' not in df.columns:
                 print(f"participant_identifier not found in dataframe {filename}")
@@ -19,7 +19,11 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
 
             df['participant_identifier'] = df['participant_identifier'].str.strip()
             df = df[~df['participant_identifier'].isin(ids_to_exclude)]
+
             processed_dataframes.append(df)
             filenames.append(filename)
+
+            out_path_headers = os.path.join(source_path, f"ITEM_{filename}")
+            df.to_csv(out_path_headers, index=False)
 
     return processed_dataframes, filenames

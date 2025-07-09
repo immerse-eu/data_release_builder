@@ -20,7 +20,7 @@ baseline_ids_directory = load_config_file('filters', 'baseline_ids_directory')
 
 # Record_24
 filepath_requirements_id_24 = load_config_file('data_requirements', 'input_release_num_24')
-filepath_release_id_24_original = load_config_file('data_release', 'output_release_num_24')
+filepath_release_id_24 = load_config_file('data_release', 'output_release_num_24')
 
 # Record_19
 filepath_requirements_id_19 = load_config_file('data_requirements', 'input_release_num_19')
@@ -47,11 +47,13 @@ def read_yaml_file(filename):
     print(item_map)
     return item_map
 
+
 def get_columns_from_table(table_name):
     conn = connect_db()
     query = f"PRAGMA table_info('{table_name}')"
     info = pd.read_sql_query(query, conn)
     return info['name'].tolist()
+
 
 def prepare_tables_to_export(file_map):
     tables_to_export = []
@@ -117,8 +119,8 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
             query = f'SELECT {cols_sql} FROM "{table}"'
 
         df = pd.read_sql_query(query, conn)
-        out_path_headers = os.path.join(output_dir, f"ITEM_{item}_{table}.csv")
-        out_path_without_headers = os.path.join(output_dir, f"ITEM_{item}_{table}_no_headers.csv")
+        out_path_headers = os.path.join(output_dir, f"{item}_{table}.csv")
+        out_path_without_headers = os.path.join(output_dir, f"{item}_{table}_no_headers.csv")
 
         df.to_csv(out_path_headers, index=False)
         # df.to_csv(out_path_without_headers, index=False, header=False)
@@ -130,20 +132,21 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
 
 def remove_header_from_csv(input_csv_path):
     for file in os.listdir(input_csv_path):
-        filepath = os.path.join(input_csv_path, file)
-        df = pd.read_csv(filepath)
-        new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
-        df.to_csv(new_filepath, sep=";", index=False, header=False)
+        if file.endswith(".csv"):
+            filepath = os.path.join(input_csv_path, file)
+            df = pd.read_csv(filepath)
+            new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
+            df.to_csv(new_filepath, sep=";", index=False, header=False)
 
 
 def main():
-    requirements_dict = read_yaml_file(filepath_requirements_id_19)
+    requirements_dict = read_yaml_file(filepath_requirements_id_24)
     export_sqlite_tables_to_csv(
         file_map=requirements_dict,
-        output_dir=filepath_release_id_19
+        output_dir=filepath_release_id_24
     )
-    # remove_header_from_csv(filepath_release_id_19)
-    filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_19)
+    filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_24)
+    remove_header_from_csv(filepath_release_id_19)
 
 
 if __name__ == '__main__':
