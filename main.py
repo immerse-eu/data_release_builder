@@ -120,7 +120,7 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
 
         df = pd.read_sql_query(query, conn)
         out_path_headers = os.path.join(output_dir, f"{item}_{table}.csv")
-        out_path_without_headers = os.path.join(output_dir, f"{item}_{table}_no_headers.csv")
+        # out_path_without_headers = os.path.join(output_dir, f"{item}_{table}_no_headers.csv")
 
         df.to_csv(out_path_headers, index=False)
         # df.to_csv(out_path_without_headers, index=False, header=False)
@@ -128,6 +128,30 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
         print(f"Exported {table} ({'all columns' if columns is None else f'{len(columns)} columns'})")
 
     conn.close()
+
+
+def create_participants_summary_from_df(output_path):
+    unique_values = {}
+    value_columns = ["unit", "condition", "randomize"]
+
+    for file in os.listdir(output_path):
+        if file.endswith(".csv") and not file.endswith("no_headers.csv"):
+            print("filename name: ", file)
+            filepath = os.path.join(output_path, file)
+            current_df = pd.read_csv(filepath)
+            for _, row in current_df.iterrows():
+                identifier = row.iloc[0]
+                if pd.notna(identifier) and identifier not in unique_values:
+                    values = [row.get(col) for col in value_columns]
+                    unique_values[identifier] = values
+
+    unique_participants_df = pd.DataFrame.from_dict(unique_values, orient="index", columns=value_columns)
+    unique_participants_df.index.name = "participant_identifier"
+    unique_participants_df.reset_index(inplace=True)
+    output_filename = f'participants_conditions_summary.csv'
+    output_file = os.path.join(os.path.dirname(output_path), output_filename)
+    unique_participants_df.to_csv(output_file, sep=';', index=False)
+    print(f"Exported {len(unique_participants_df)} unique IDs to {output_file}")
 
 
 def remove_header_from_csv(input_csv_path):
@@ -140,12 +164,19 @@ def remove_header_from_csv(input_csv_path):
 
 
 def main():
+    # Step 1: Read requirements.
     requirements_dict = read_yaml_file(filepath_requirements_id_24)
-    export_sqlite_tables_to_csv(
-        file_map=requirements_dict,
-        output_dir=filepath_release_id_24
-    )
+
+    # Step 2: Export CSV files from Research DB tables.
+    export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_24)
+
+    # Step 3: Exclude participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_24)
+
+    # Step 5: Create a summary of participants (n= 379).
+    create_participants_summary_from_df(filepath_release_id_24)
+
+    # Step 6: Export a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_24)
 
 
