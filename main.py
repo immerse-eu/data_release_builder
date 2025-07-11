@@ -164,19 +164,19 @@ def remove_header_from_csv(input_csv_path):
 
 
 def main():
-    # Step 1: Read requirements.
+    # Step 1: Reads requirements.
     requirements_dict = read_yaml_file(filepath_requirements_id_24)
 
-    # Step 2: Export CSV files from Research DB tables.
+    # Step 2: Exports CSV files from Research DB tables.
     export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_24)
 
-    # Step 3: Exclude participants whose dropped out from Baseline.
+    # Step 3: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_24)
 
-    # Step 5: Create a summary of participants (n= 379).
+    # Step 5: Creates a summary of participants (n=379).
     create_participants_summary_from_df(filepath_release_id_24)
 
-    # Step 6: Export a copy of CSV files without headers.
+    # Step 6: Exports a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_24)
 
 
