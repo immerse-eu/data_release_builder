@@ -3,6 +3,7 @@ import yaml
 import sqlite3
 import pandas as pd
 from filtering import filtering_excluded_ids
+import re
 
 
 def load_config_file(directory, file):
@@ -161,6 +162,57 @@ def remove_header_from_csv(input_csv_path):
             df = pd.read_csv(filepath)
             new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
             df.to_csv(new_filepath, sep=";", index=False, header=False)
+
+def info_to_yaml(info_txt_file_path):
+    # read info.txt file
+    info_path = info_txt_file_path + '/info.txt'
+    try:
+        with open(info_path, 'r') as file:
+            file_data = file.read()
+    except FileNotFoundError:
+        print("The info.txt was not found in {}.".format(info_txt_file_path))
+
+    pattern = r"REQUEST: Record ID (\d+)\n\n(.*?)\Z"
+    match = re.search(pattern, file_data, re.DOTALL)
+    if match:
+        record_id = int(match.group(1))  # Convert to integer
+        items_text = match.group(2)
+
+        # Find substrings for each item
+        item_substrings = [item for item in items_text.split('ITEM ') if item]
+
+        data_dict = {"files": []}
+        for item in item_substrings:
+            item_number_match = re.search(r"(\d+):", item)
+            csv_filenames_match = re.findall(r"([^\s]+\.csv)", item)
+            interested_variables_match = re.search(r"INTERESTED_VARIABLES:\s*\[([^\]]*)\]", item)
+
+            if item_number_match:
+                item_number = int(item_number_match.group(1))
+            else:
+                continue  # Skip this item if no item number is found
+
+            csv_filenames = [filename.replace('.csv', '') for filename in csv_filenames_match]
+
+            interested_variables = None
+            if interested_variables_match:
+                interested_variables = interested_variables_match.group(1)
+
+            item_data = {
+                "item": item_number,
+                "name": csv_filenames
+            }
+            if interested_variables:
+                item_data["variables"] = interested_variables
+
+            data_dict["files"].append(item_data)
+
+    # bring into yaml-format & save
+    file_path = info_txt_file_path + '/request_id_{}.yaml'.format(record_id)
+    with open(file_path, 'w') as file:
+        yaml.dump(data_dict, file, default_flow_style=False)
+
+    print(f"Info.txt written to request_id_{record_id}.yaml")
 
 
 def main():
