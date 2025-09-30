@@ -1,8 +1,10 @@
+import csv
 import os
 import yaml
 import sqlite3
 import pandas as pd
 from filtering import filtering_excluded_ids
+from utils import detect_separator
 
 
 def load_config_file(directory, file):
@@ -25,6 +27,14 @@ filepath_release_id_24 = load_config_file('data_release', 'output_release_num_24
 # Record_19
 filepath_requirements_id_19 = load_config_file('data_requirements', 'input_release_num_19')
 filepath_release_id_19 = load_config_file('data_release', 'output_release_num_19')
+
+# Record_22
+filepath_requirements_id_22 = load_config_file('data_requirements', 'input_release_num_22')
+filepath_release_id_22 = load_config_file('data_release', 'output_release_num_22')
+
+# Record_31
+filepath_requirements_id_31 = load_config_file('data_requirements', 'input_release_num_31')
+filepath_release_id_31 = load_config_file('data_release', 'output_release_num_31')
 
 
 def connect_db():
@@ -133,12 +143,15 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
 def create_participants_summary_from_df(output_path):
     unique_values = {}
     value_columns = ["unit", "condition", "randomize"]
+    # value_columns = ["participant_number", "VisitCode", "SiteCode"]  # --> only for MovisensESM
 
     for file in os.listdir(output_path):
         if file.endswith(".csv") and not file.endswith("no_headers.csv"):
-            print("filename name: ", file)
+            print("Processing file:", file)
             filepath = os.path.join(output_path, file)
-            current_df = pd.read_csv(filepath)
+            separator = detect_separator(filepath)
+            current_df = pd.read_csv(filepath, sep=separator, quotechar='"')
+
             for _, row in current_df.iterrows():
                 identifier = row.iloc[0]
                 if pd.notna(identifier) and identifier not in unique_values:
@@ -178,6 +191,9 @@ def main():
 
     # Step 6: Exports a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_24)
+
+    # Step 7: Exports a copy of CSV files without headers.
+    remove_header_from_csv(filepath_release_id_31)
 
 
 if __name__ == '__main__':
