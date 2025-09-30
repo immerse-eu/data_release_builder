@@ -1,7 +1,6 @@
+import csv
 import os
 import pandas as pd
-
-path = ""
 
 
 def rename_columns(directory):
@@ -85,5 +84,10 @@ def filter_and_rename_values_in_df(directory):
             df_filtered.to_csv(new_filepath, sep=";", index=False)
 
 
-# rename_columns(path)
-filter_and_rename_values_in_df(path)
+def detect_separator(filepath):
+    with open(filepath, 'r',  encoding='utf-8', errors='ignore') as f:
+        first_line = f.readline()
+
+    for delimiter in [',', ';']:
+        if delimiter in first_line:
+            return delimiter
