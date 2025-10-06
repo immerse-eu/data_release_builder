@@ -169,9 +169,9 @@ def create_participants_summary_from_df(output_path):
 
 def remove_header_from_csv(input_csv_path):
     for file in os.listdir(input_csv_path):
-        if file.endswith(".csv"):
+        if file.endswith(".csv") and not file.endswith("_no_headers.csv"):
             filepath = os.path.join(input_csv_path, file)
-            df = pd.read_csv(filepath)
+            df = pd.read_csv(filepath, sep=";")
             new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
             df.to_csv(new_filepath, sep=";", index=False, header=False)
 
@@ -188,9 +188,6 @@ def main():
 
     # Step 5: Creates a summary of participants (n=379).
     create_participants_summary_from_df(filepath_release_id_24)
-
-    # Step 6: Exports a copy of CSV files without headers.
-    remove_header_from_csv(filepath_release_id_24)
 
     # Step 7: Exports a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_31)
