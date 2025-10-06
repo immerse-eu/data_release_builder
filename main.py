@@ -18,21 +18,33 @@ def load_config_file(directory, file):
             return config[directory]
 
 
-def write_config_file(directory, file, key="data_requirements"):
+def write_config_file(filepath, file, key="data_requirements"):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(base_dir, "config.yaml")
 
+    def find_file_key(data, search_key,  target_directory):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                # Only search inside the desired key
+                if k == search_key and isinstance(v, dict):
+                    for sub_key, sub_value in v.items():
+                        if isinstance(sub_value, str) and (os.path.isdir(sub_value) or sub_value == target_directory):
+                            return sub_key
+                elif isinstance(v, dict):
+                    result = find_file_key(v, search_key, target_directory)
+                    if result:
+                        return result
+        return None
+
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f) or {}
+            config = yaml.safe_load(f)
+            key_file = find_file_key(config, key,  filepath)
     else:
         config = {}
 
-    if key not in config:
-        config[key] = {}
-
-    full_file_path = os.path.join(directory, file)
-    config[key][file] = full_file_path
+    full_file_path = os.path.join(filepath, file)
+    config[key][key_file] = full_file_path
 
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(config, f, default_flow_style=False)
@@ -44,8 +56,8 @@ db_filepath = load_config_file('DB', 'current_db')
 baseline_ids_directory = load_config_file('filters', 'baseline_ids_directory')
 
 # --- Record release: Record_00 (test)
-filepath_requirements_id_00 = load_config_file('data_requirements', 'input_release_num_00')
-filepath_release_id_00 = load_config_file('data_release', 'output_release_num_00')
+filepath_requirements_id_00 = load_config_file('data_requirements', 'input_release_num_23')
+filepath_release_id_00 = load_config_file('data_release', 'output_release_num_23')
 
 
 def connect_db():
@@ -61,17 +73,14 @@ def read_yaml_file(filename):
         item = entry.get('item')
         names = entry.get('name', [])
         added_vars = entry.get('variables', [])
-        item_map[item] = {
-            'table_name': names,
-            'variables': added_vars
-        }
+        if item:
+            item_map[item] = {
+                'table_name': names,
+                'variables': added_vars
+            }
 
-    assessment = config.get('assessment_window', [])
-    if assessment:
-        item_map['assessment_window'] = assessment
-
-    print("Mapped values from YAML:\n", item_map)
-    return item_map
+    assessment_window = config.get('assessment_window', [])
+    return item_map, assessment_window
 
 
 def get_columns_from_table(table_name):
@@ -192,7 +201,6 @@ def remove_header_from_csv(input_csv_path):
 
 def info_to_yaml(info_txt_file_path):
     info_path = os.path.join(info_txt_file_path, "info.txt")
-    print(f"Loading info from {info_path}")
     file_data = None
 
     try:
@@ -215,9 +223,6 @@ def info_to_yaml(info_txt_file_path):
         record_id = int(match.group(1))  # Convert to integer
         items_text = match.group(2)
 
-        # Find substrings for each item
-        item_substrings = [item for item in items_text.split('ITEM ') if item]
-
         data_dict = {"files": []}
 
         # Detect assessment window to filter data
@@ -228,33 +233,32 @@ def info_to_yaml(info_txt_file_path):
             if assessment_values:
                 data_dict["assessment_window"] = assessment_values
 
-        for item in item_substrings:
-            item_number_match = re.search(r"(\d+):", item)
-            csv_filenames_match = re.findall(r"([^\s]+\.csv)", item)
-            interested_variables_matches = re.findall(interested_vars, item, flags=re.MULTILINE)
+        item_blocks = [block for block in items_text.split('ITEM ') if block.strip()]
 
+        for item in item_blocks:
+            item_number_match = re.search(r"(\d+):", item)
             if item_number_match:
                 item_number = int(item_number_match.group(1))
             else:
                 continue  # Skip this item if no item number is found
 
+            csv_filenames_match = re.findall(r"([^\s]+\.csv)", item)
             csv_filenames = [filename.replace('.csv', '') for filename in csv_filenames_match]
 
+            interested_variables_matches = re.findall(interested_vars, item, flags=re.MULTILINE)
             interested_variables = []
             for match1, match2 in interested_variables_matches:
                 captured = match1 or match2
-                if captured:
-                    # For "interested_var1" option
-                    if ',' in captured:
-                        variables = [v.strip() for v in captured.split(',')]
-                    # For "interested_var2" alternative
-                    else:
-                        variables = [v.strip() for v in captured.splitlines() if v.strip()]
-                    interested_variables.extend(variables)
+                if not captured:
+                    continue
+                if ',' in captured:
+                    interested_variables.extend([v.strip() for v in captured.split(',') if v.strip()])
+                else:
+                    interested_variables.extend([v.strip() for v in captured.splitlines() if v.strip()])
 
             item_data = {
                 "item": item_number,
-                "name": csv_filenames
+                "name": csv_filenames or None
             }
 
             if interested_variables:
@@ -262,30 +266,28 @@ def info_to_yaml(info_txt_file_path):
 
             data_dict["files"].append(item_data)
 
-        print(data_dict)
+        # bring into yaml-format & save
+        file_path = os.path.join(info_txt_file_path, f'request_id_{record_id}.yaml')
+        with open(file_path, 'w') as file:
+            yaml.dump(data_dict, file, default_flow_style=False, sort_keys=False)
+        saved_path = write_config_file(os.path.dirname(file_path), os.path.basename(file_path))
 
-    # bring into yaml-format & save
-    file_path = os.path.join(info_txt_file_path, f'request_id_{record_id}.yaml')
-    with open(file_path, 'w') as file:
-        yaml.dump(data_dict, file, default_flow_style=False, sort_keys=False)
-    saved_path = write_config_file(info_txt_file_path, os.path.dirname(file_path))
-
-    if file_path:
-        print(f"Info.txt written to request_id_{record_id}.yaml created at: {saved_path}")
+        if file_path:
+            print(f"Info.txt written to request_id_{record_id}.yaml created at: {saved_path}")
 
 
 def main():
     # Step 1: Generates YAML file from Info.txt
-    info_to_yaml(filepath_requirements_id_00)     # TODO: Fix rewriting filename in config.yaml
+    info_to_yaml(filepath_requirements_id_00)
 
     # Step 2: Reads requirements from YAML.
-    requirements_dict = read_yaml_file(filepath_requirements_id_00)
+    requirements_dict, assessment_windows = read_yaml_file(filepath_requirements_id_00)
 
-    # # Step 3: Exports CSV files from Research DB tables.
+    # Step 3: Exports CSV files from Research DB tables.
     export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_00)
 
     # Step 4: Filtering per assessment window (Baseline, 2-month, 6-month, 12-month, etc).
-    assessment_window_filtering(file_map=requirements_dict, source_path=filepath_release_id_00)
+    assessment_window_filtering(assessment_list=assessment_windows, source_path=filepath_release_id_00)
 
     # Step 5: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_00)
@@ -296,7 +298,7 @@ def main():
     # Step 7: Pseudo
 
     # Step 8: Exports a copy of CSV files without headers.
-    remove_header_from_csv(filepath_release_id_00)
+    # remove_header_from_csv(filepath_release_id_00)
 
 
 if __name__ == '__main__':

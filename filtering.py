@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 
-def assessment_window_filtering(file_map, source_path):
+def assessment_window_filtering(assessment_list, source_path):
 
     window_map = {
         'Baseline': 'Baseline',
@@ -17,14 +17,15 @@ def assessment_window_filtering(file_map, source_path):
         '12-month post-baseline': 3
     }
 
-    windows = file_map.get('assessment_window')
+    windows = assessment_list
     if not windows:
         raise ValueError("file_map does not any contain 'assessment_window'.")
     if not isinstance(windows, list):
         windows = [windows]
 
-    target_values = [window_map[value] for value in windows]
-    target_codes = [code_map[value] for value in windows]
+    target_values = [window_map[value] for value in windows if value in window_map]
+    target_codes = [code_map[value] for value in windows if value in code_map]
+    pattern_values = '|'.join(target_values)
 
     filtered_files = {}
 
@@ -37,8 +38,8 @@ def assessment_window_filtering(file_map, source_path):
             df = pd.read_csv(file_path, sep=';')
 
             if 'visit_name' in df.columns:
-                mask = df['visit_name'].str.contains(target_values, case=False, na=False)
-            elif 'SiteCode' in df.columns:
+                mask = df['visit_name'].str.contains(pattern_values, case=False, na=False)
+            elif 'VisitCode' in df.columns:
                 mask = df['VisitCode'].isin(target_codes)
             else:
                 print(f"{filename}: skipped (no 'visit_name' or 'VisitCode' column found)")
@@ -64,7 +65,7 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
     for filename in os.listdir(source_path):
         if filename.endswith('.csv') and not filename.endswith('_no_headers.csv'):
             file_path = os.path.join(source_path, filename)
-            df = pd.read_csv(file_path, sep=',')
+            df = pd.read_csv(file_path, sep=';')
 
             if 'participant_identifier' not in df.columns:
                 print(f"participant_identifier not found in dataframe {filename}")
