@@ -2,7 +2,7 @@ import os
 import yaml
 import sqlite3
 import pandas as pd
-from filtering import filtering_excluded_ids
+from filtering import assessment_window_filtering, filtering_excluded_ids
 from utils import detect_separator
 import re
 
@@ -65,7 +65,12 @@ def read_yaml_file(filename):
             'table_name': names,
             'variables': added_vars
         }
-    print(item_map)
+
+    assessment = config.get('assessment_window', [])
+    if assessment:
+        item_map['assessment_window'] = assessment
+
+    print("Mapped values from YAML:\n", item_map)
     return item_map
 
 
@@ -141,10 +146,8 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
 
         df = pd.read_sql_query(query, conn)
         out_path_headers = os.path.join(output_dir, f"{item}_{table}.csv")
-        # out_path_without_headers = os.path.join(output_dir, f"{item}_{table}_no_headers.csv")
 
-        df.to_csv(out_path_headers, index=False)
-        # df.to_csv(out_path_without_headers, index=False, header=False)
+        df.to_csv(out_path_headers, index=False, sep=";")
 
         print(f"Exported {table} ({'all columns' if columns is None else f'{len(columns)} columns'})")
 
@@ -205,6 +208,7 @@ def info_to_yaml(info_txt_file_path):
     interested_var1 = r"INTERESTED_VARIABLES:\s*\[([^\]]*)\]|"
     interested_var2 = r"^\s*INTERESTED_VARIABLES:\s*\n((?:[ \t]+.+\n?)*)"
     interested_vars = rf"{interested_var1}|{interested_var2}"
+    assessment_vars = r"-\s*Data Phase II assessment window:\s*([^\n]+)"
 
     match = re.search(pattern, file_data, re.DOTALL)
     if match:
@@ -215,6 +219,15 @@ def info_to_yaml(info_txt_file_path):
         item_substrings = [item for item in items_text.split('ITEM ') if item]
 
         data_dict = {"files": []}
+
+        # Detect assessment window to filter data
+        match_assessment = re.search(assessment_vars, items_text, re.DOTALL)
+        if match_assessment:
+            assessment_raw_values = match_assessment.group(1)
+            assessment_values = [v.strip() for v in assessment_raw_values.split(",") if v.strip()]
+            if assessment_values:
+                data_dict["assessment_window"] = assessment_values
+
         for item in item_substrings:
             item_number_match = re.search(r"(\d+):", item)
             csv_filenames_match = re.findall(r"([^\s]+\.csv)", item)
@@ -268,18 +281,21 @@ def main():
     # Step 2: Reads requirements from YAML.
     requirements_dict = read_yaml_file(filepath_requirements_id_00)
 
-    # Step 3: Exports CSV files from Research DB tables.
+    # # Step 3: Exports CSV files from Research DB tables.
     export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_00)
 
-    # Step 4: Excludes participants whose dropped out from Baseline.
+    # Step 4: Filtering per assessment window (Baseline, 2-month, 6-month, 12-month, etc).
+    assessment_window_filtering(file_map=requirements_dict, source_path=filepath_release_id_00)
+
+    # Step 5: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_00)
 
-    # Step 5: Creates a summary of participants (n=379).
+    # Step 6: Creates a summary of participants (n=379).
     create_participants_summary_from_df(filepath_release_id_00)
 
-    # Step 6: Pseudo
+    # Step 7: Pseudo
 
-    # Step 7: Exports a copy of CSV files without headers.
+    # Step 8: Exports a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_00)
 
 
