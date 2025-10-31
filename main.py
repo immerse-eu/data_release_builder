@@ -2,62 +2,18 @@ import os
 import yaml
 import sqlite3
 import pandas as pd
-from filtering import assessment_window_filtering, filtering_excluded_ids
-from utils import detect_separator
+from filtering import assessment_window_filtering, filtering_interesting_ids, filtering_excluded_ids
+from utils import load_config_file, write_config_file, detect_separator
 import re
-
-
-def load_config_file(directory, file):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_dir, "config.yaml")
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-        if file:
-            return config[directory][file]
-        else:
-            return config[directory]
-
-
-def write_config_file(filepath, file, key="data_requirements"):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_dir, "config.yaml")
-
-    def find_file_key(data, search_key,  target_directory):
-        if isinstance(data, dict):
-            for k, v in data.items():
-                # Only search inside the desired key
-                if k == search_key and isinstance(v, dict):
-                    for sub_key, sub_value in v.items():
-                        if isinstance(sub_value, str) and (os.path.isdir(sub_value) or sub_value == target_directory):
-                            return sub_key
-                elif isinstance(v, dict):
-                    result = find_file_key(v, search_key, target_directory)
-                    if result:
-                        return result
-        return None
-
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-            key_file = find_file_key(config, key,  filepath)
-    else:
-        config = {}
-
-    full_file_path = os.path.join(filepath, file)
-    config[key][key_file] = full_file_path
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(config, f, default_flow_style=False)
-
-    return full_file_path
 
 
 db_filepath = load_config_file('DB', 'current_db')
 baseline_ids_directory = load_config_file('filters', 'baseline_ids_directory')
 
 # --- Record release: Record_00 (test)
-filepath_requirements_id_00 = load_config_file('data_requirements', 'input_release_num_23')
-filepath_release_id_00 = load_config_file('data_release', 'output_release_num_23')
+filepath_requirements_id_00 = load_config_file('data_requirements', 'input_release_num_22')
+filepath_release_id_00 = load_config_file('data_release', 'output_release_num_22')
+additional_ids_filter_directory_id_00 = load_config_file('filters', 'additional_id_filter_num_22')
 
 
 def connect_db():
@@ -124,7 +80,7 @@ def prepare_tables_to_export(file_map):
                 })
             else:
                 cols = get_columns_from_table(table)
-                base_cols = cols[:10]
+                base_cols = cols[:10]  # TODO: Change when including DMMH
                 filter_cols = [c for c in variables_to_add if c in cols and c not in base_cols]
                 selected_cols = base_cols + filter_cols
                 tables_to_export.append({
@@ -169,7 +125,7 @@ def create_participants_summary_from_df(output_path):
     # value_columns = ["participant_number", "VisitCode", "SiteCode"]  # --> only for MovisensESM
 
     for file in os.listdir(output_path):
-        if file.endswith(".csv") and not file.endswith("no_headers.csv"):
+        if file.endswith(".csv") and file.startswith("ITEM"):
             print("Processing file:", file)
             filepath = os.path.join(output_path, file)
             separator = detect_separator(filepath)
@@ -192,9 +148,11 @@ def create_participants_summary_from_df(output_path):
 
 def remove_header_from_csv(input_csv_path):
     for file in os.listdir(input_csv_path):
-        if file.endswith(".csv"):
+        if file.startswith("ITEM") and file.endswith(".csv"):
             filepath = os.path.join(input_csv_path, file)
-            df = pd.read_csv(filepath)
+            print(f"Removing header from {file}, {filepath}")
+
+            df = pd.read_csv(filepath, sep=";")
             new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
             df.to_csv(new_filepath, sep=";", index=False, header=False)
 
@@ -292,13 +250,18 @@ def main():
     # Step 5: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_00)
 
-    # Step 6: Creates a summary of participants (n=379).
+    # Step 6: Additional participant IDs filtering (depends on each data release).
+    if os.path.isfile(additional_ids_filter_directory_id_00) and additional_ids_filter_directory_id_00.endswith('.xlsx'):
+        filtering_interesting_ids(baseline_ids_path=additional_ids_filter_directory_id_00,
+                                  source_path=filepath_release_id_00)
+
+    # Step 7: Creates a summary of participants (n=379).
     create_participants_summary_from_df(filepath_release_id_00)
 
-    # Step 7: Pseudo
+    # Step 8: Pseudo
 
-    # Step 8: Exports a copy of CSV files without headers.
-    # remove_header_from_csv(filepath_release_id_00)
+    # Step 9: Exports a copy of CSV files without headers.
+    remove_header_from_csv(filepath_release_id_00)
 
 
 if __name__ == '__main__':
