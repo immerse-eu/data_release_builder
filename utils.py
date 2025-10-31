@@ -1,5 +1,5 @@
-import csv
 import os
+import yaml
 import pandas as pd
 
 
@@ -91,3 +91,48 @@ def detect_separator(filepath):
     for delimiter in [',', ';']:
         if delimiter in first_line:
             return delimiter
+
+
+def load_config_file(directory, file):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(base_dir, "config.yaml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+        if file:
+            return config[directory][file]
+        else:
+            return config[directory]
+
+
+def write_config_file(filepath, file, key="data_requirements"):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(base_dir, "config.yaml")
+
+    def find_file_key(data, search_key,  target_directory):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                # Only search inside the desired key
+                if k == search_key and isinstance(v, dict):
+                    for sub_key, sub_value in v.items():
+                        if isinstance(sub_value, str) and (os.path.isdir(sub_value) or sub_value == target_directory):
+                            return sub_key
+                elif isinstance(v, dict):
+                    result = find_file_key(v, search_key, target_directory)
+                    if result:
+                        return result
+        return None
+
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+            key_file = find_file_key(config, key,  filepath)
+    else:
+        config = {}
+
+    full_file_path = os.path.join(filepath, file)
+    config[key][key_file] = full_file_path
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(config, f, default_flow_style=False)
+
+    return full_file_path
