@@ -1,3 +1,4 @@
+import csv
 import os
 import yaml
 import sqlite3
@@ -155,83 +156,6 @@ def remove_header_from_csv(input_csv_path):
             df = pd.read_csv(filepath, sep=";")
             new_filepath = os.path.join(input_csv_path, f"{file.replace(".csv", "_")}no_headers.csv")
             df.to_csv(new_filepath, sep=";", index=False, header=False)
-
-
-def info_to_yaml(info_txt_file_path):
-    info_path = os.path.join(info_txt_file_path, "info.txt")
-    file_data = None
-
-    try:
-        with open(info_path, 'r') as file:
-            file_data = file.read()
-    except FileNotFoundError:
-        print("The info.txt was not found in {}.".format(info_txt_file_path))
-
-    if file_data is None:
-        raise FileNotFoundError(f"No data loaded from {info_path}")
-
-    pattern = r"REQUEST: Record ID (\d+)\n\n(.*?)\Z"
-    interested_var1 = r"INTERESTED_VARIABLES:\s*\[([^\]]*)\]|"
-    interested_var2 = r"^\s*INTERESTED_VARIABLES:\s*\n((?:[ \t]+.+\n?)*)"
-    interested_vars = rf"{interested_var1}|{interested_var2}"
-    assessment_vars = r"-\s*Data Phase II assessment window:\s*([^\n]+)"
-
-    match = re.search(pattern, file_data, re.DOTALL)
-    if match:
-        record_id = int(match.group(1))  # Convert to integer
-        items_text = match.group(2)
-
-        data_dict = {"files": []}
-
-        # Detect assessment window to filter data
-        match_assessment = re.search(assessment_vars, items_text, re.DOTALL)
-        if match_assessment:
-            assessment_raw_values = match_assessment.group(1)
-            assessment_values = [v.strip() for v in assessment_raw_values.split(",") if v.strip()]
-            if assessment_values:
-                data_dict["assessment_window"] = assessment_values
-
-        item_blocks = [block for block in items_text.split('ITEM ') if block.strip()]
-
-        for item in item_blocks:
-            item_number_match = re.search(r"(\d+):", item)
-            if item_number_match:
-                item_number = int(item_number_match.group(1))
-            else:
-                continue  # Skip this item if no item number is found
-
-            csv_filenames_match = re.findall(r"([^\s]+\.csv)", item)
-            csv_filenames = [filename.replace('.csv', '') for filename in csv_filenames_match]
-
-            interested_variables_matches = re.findall(interested_vars, item, flags=re.MULTILINE)
-            interested_variables = []
-            for match1, match2 in interested_variables_matches:
-                captured = match1 or match2
-                if not captured:
-                    continue
-                if ',' in captured:
-                    interested_variables.extend([v.strip() for v in captured.split(',') if v.strip()])
-                else:
-                    interested_variables.extend([v.strip() for v in captured.splitlines() if v.strip()])
-
-            item_data = {
-                "item": item_number,
-                "name": csv_filenames or None
-            }
-
-            if interested_variables:
-                item_data["variables"] = interested_variables
-
-            data_dict["files"].append(item_data)
-
-        # bring into yaml-format & save
-        file_path = os.path.join(info_txt_file_path, f'request_id_{record_id}.yaml')
-        with open(file_path, 'w') as file:
-            yaml.dump(data_dict, file, default_flow_style=False, sort_keys=False)
-        saved_path = write_config_file(os.path.dirname(file_path), os.path.basename(file_path))
-
-        if file_path:
-            print(f"Info.txt written to request_id_{record_id}.yaml created at: {saved_path}")
 
 
 def main():

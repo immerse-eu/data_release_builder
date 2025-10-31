@@ -1,3 +1,4 @@
+import csv
 import os
 import yaml
 import pandas as pd
@@ -91,6 +92,17 @@ def detect_separator(filepath):
     for delimiter in [',', ';']:
         if delimiter in first_line:
             return delimiter
+
+
+def rename_files(filepath, word_to_replace, replacement):
+    for file in os.listdir(filepath):
+        if not file.startswith("ITEM") and file.endswith(".csv"):
+            if word_to_replace in file:
+                new_name = file.replace(file, f"{replacement}_{file}")
+                print(new_name)
+                os.rename(os.path.join(filepath, file), os.path.join(filepath, new_name))
+            else:
+                print(f"{word_to_replace} not found in {file}")
 
 
 def load_config_file(directory, file):
