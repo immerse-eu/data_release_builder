@@ -69,7 +69,6 @@ def prepare_tables_to_export(file_map):
             variables_to_add = [v for v in variables_to_add if isinstance(v, str)]
 
         for table in table_names:
-            print(table_names)
             if table not in all_tables:
                 print(f"Warning: Table '{table}' not found in DB. Skipping.")
                 continue
@@ -144,7 +143,7 @@ def create_participants_summary_from_df(output_path):
     output_filename = f'participants_conditions_summary.csv'
     output_file = os.path.join(os.path.dirname(output_path), output_filename)
     unique_participants_df.to_csv(output_file, sep=';', index=False)
-    print(f"Exported {len(unique_participants_df)} unique IDs in:\n {output_file}")
+    print(f"Exported {len(unique_participants_df)} unique IDs in:\n{output_file}\n")
 
 
 def remove_header_from_csv(input_csv_path):
@@ -237,7 +236,7 @@ def info_to_yaml(info_txt_file_path):
 
 def main():
     # Step 1: Generates YAML file from Info.txt
-    info_to_yaml(filepath_requirements_id_00)
+    # info_to_yaml(filepath_requirements_id_00)
 
     # Step 2: Reads requirements from YAML.
     requirements_dict, assessment_windows = read_yaml_file(filepath_requirements_id_00)
