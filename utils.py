@@ -3,6 +3,8 @@ import os
 import yaml
 import pandas as pd
 
+source = ""
+
 
 def rename_columns(directory):
     print(f"Renaming columns...")
@@ -148,3 +150,35 @@ def write_config_file(filepath, file, key="data_requirements"):
         yaml.safe_dump(config, f, default_flow_style=False)
 
     return full_file_path
+
+
+def merge_files(source_path, new_filename):
+    all_dataframes = []
+    for filename in os.listdir(source_path):
+        if filename.endswith('.xlsx') or filename.endswith('.csv'):
+            if filename.startswith('Logins'):
+                filepath = os.path.join(source_path, filename)
+                df = pd.read_csv(filepath, sep=';', encoding='cp1250') if filepath.endswith('.csv') else pd.read_excel(filepath)
+                all_dataframes.append(df)
+
+    merged_dataframes = pd.concat(all_dataframes, ignore_index=True).drop_duplicates()
+    merged_dataframes.to_excel(os.path.join(source_path, new_filename), index=False)
+    print("Merging done.")
+
+
+def get_unique_values_from_columns(file_path, column1, column2, new_filename):
+    df = pd.read_excel(file_path)
+    df[column1] = df[column1].astype(str).str.strip()
+    df[column2] = df[column2].astype(str).str.strip()
+
+    df_unique = df[[column1, column2]].drop_duplicates().reset_index(drop=True)
+
+    output_path = os.path.join(source, new_filename)
+    df_unique.to_excel(output_path, index=False)
+
+# merge_files(source_path="", new_filename="")
+# get_unique_values_from_columns(file_path="",
+#                                column1="firstName",
+#                                column2="lastName",
+#                                new_filename='unique_values.xlsx'
+#                                )
