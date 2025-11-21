@@ -81,7 +81,8 @@ def prepare_tables_to_export(file_map):
                 })
             else:
                 cols = get_columns_from_table(table)
-                base_cols = cols[:10]  # TODO: Change when including DMMH
+                base_cols = cols[:10]
+                # base_cols = [cols[i] for i in range(7) if i != 1]  # TODO: Use for DMMH
                 filter_cols = [c for c in variables_to_add if c in cols and c not in base_cols]
                 selected_cols = base_cols + filter_cols
                 tables_to_export.append({
@@ -103,6 +104,9 @@ def export_sqlite_tables_to_csv(file_map, output_dir):
         item = entry['item']
         table = entry['table']
         columns = entry['columns']
+        print('Exporting..')
+        print("table", table)
+        print("columns: ", columns)
 
         if columns is None:
             query = f'SELECT * FROM "{table}"'
