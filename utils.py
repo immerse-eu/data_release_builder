@@ -3,8 +3,6 @@ import os
 import yaml
 import pandas as pd
 
-source = ""
-
 
 def rename_columns(directory):
     print(f"Renaming columns...")
@@ -158,27 +156,87 @@ def merge_files(source_path, new_filename):
         if filename.endswith('.xlsx') or filename.endswith('.csv'):
             if filename.startswith('Logins'):
                 filepath = os.path.join(source_path, filename)
-                df = pd.read_csv(filepath, sep=';', encoding='cp1250') if filepath.endswith('.csv') else pd.read_excel(filepath)
+                df = pd.read_csv(filepath, sep=';', encoding='latin1') if filepath.endswith('.csv') else pd.read_excel(filepath)
                 all_dataframes.append(df)
 
     merged_dataframes = pd.concat(all_dataframes, ignore_index=True).drop_duplicates()
     merged_dataframes.to_excel(os.path.join(source_path, new_filename), index=False)
-    print("Merging done.")
+    print("Merging done.", source_path)
+    return merged_dataframes
 
 
-def get_unique_values_from_columns(file_path, column1, column2, new_filename):
-    df = pd.read_excel(file_path)
+def get_unique_values_from_columns(df, column1, column2, directory,  new_filename):
     df[column1] = df[column1].astype(str).str.strip()
     df[column2] = df[column2].astype(str).str.strip()
 
     df_unique = df[[column1, column2]].drop_duplicates().reset_index(drop=True)
 
-    output_path = os.path.join(source, new_filename)
+    output_path = os.path.join(directory, new_filename)
     df_unique.to_excel(output_path, index=False)
+    return df_unique
 
-# merge_files(source_path="", new_filename="")
-# get_unique_values_from_columns(file_path="",
-#                                column1="firstName",
-#                                column2="lastName",
-#                                new_filename='unique_values.xlsx'
-#                                )
+
+def merge_name_surname_id_clinicians(df1, df2, path):
+    df1 = pd.read_excel(df1)
+    df2 = pd.read_excel(df2)
+
+    df1 = df1.rename(columns={"FirstName": "firstName", "LastName": "lastName"})
+    df1.info()
+    df2.info()
+
+    df1["complete_key"] = df1["firstName"].notna()
+    df1["match_name"] = df1["firstName"].where(df1["complete_key"], None)
+    df1["match_surname"] = df1["lastName"]
+
+    df2["match_name"] = df2["firstName"]
+    df2["match_surname"] = df2["lastName"]
+
+    full_match = df1[df1["complete_key"]].merge(df2,
+        on=["match_name", "match_surname"],
+        how="right",
+        suffixes=("_df1", "_df2")
+    )
+
+    only_surname_match = df1[~df1["complete_key"]].merge(
+        df2,
+        on=["match_surname"],
+        how="inner",
+        suffixes=("_df1", "_df2")
+    )
+
+    merged = df2.copy()
+    merged["clinician_identifier"] = full_match["clinician_identifier"].combine_first(only_surname_match["clinician_identifier"])
+    merged.to_excel(os.path.join(path, "merged_logins_2025-2025_extracted_names.xlsx"), index=False)
+    return merged
+
+
+# Logins (TODO: Verify)
+def prepare_login_files(login_directory):
+    id_reference_clinicians = "TherapyDesigner_clinician_IDs_all_sites_(fixed).xlsx"
+    all_logins_merged = merge_files(source_path=login_directory, new_filename="merged_logins_2023-2025.xlsx")
+    unique_clinicians = get_unique_values_from_columns(
+        df=all_logins_merged,
+        column1="firstName",
+        column2="lastName",
+        directory=login_directory,
+        new_filename='unique_therapy_design_names.xlsx'
+        )
+    if id_reference_clinicians in os.listdir(login_directory):
+        unique_clinicians_with_ids = merge_name_surname_id_clinicians(
+            id_reference_clinicians,
+            unique_clinicians,
+            login_directory
+        )
+
+        all_logins_merged_with_identified_ids = (all_logins_merged.merge(
+            unique_clinicians_with_ids,
+            on=["firstName", "lastName"], how="inner")
+                  .dropna(subset="clinician_identifier")
+                  .drop(columns=["firstName", "lastName"]))
+
+        all_logins_merged_with_identified_ids.to_excel(os.path.join(login_directory, "merged_logins_2025-2025_extracted_names.xlsx"), index=False)
+
+
+# def record_id_31(directory):
+#     rename_columns(directory)
+#     filter_and_rename_values_in_df(directory)
