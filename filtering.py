@@ -86,9 +86,9 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
 
             processed_dataframes.append(df)
             filenames.append(filename)
-            filename = f"{filename.replace("_filtered", "_exclusion_filter")}"
+            filename = f"{filename.replace("filtered", "")}"
 
-            out_path_headers = os.path.join(source_path, filename)
+            out_path_headers = os.path.join(source_path, f"ITEM_{filename}")
             df.to_csv(out_path_headers, index=False, sep=";")
             print(f"Saved {filename} ({len(df)} rows)")
 
