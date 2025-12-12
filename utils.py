@@ -1,7 +1,18 @@
 import csv
+import difflib
 import os
+from io import StringIO
 import yaml
 import pandas as pd
+
+
+def detect_separator(filepath):
+    with open(filepath, 'r',  encoding='utf-8', errors='ignore') as f:
+        first_line = f.readline()
+
+    for delimiter in [',', ';']:
+        if delimiter in first_line:
+            return delimiter
 
 
 def rename_columns(directory):
@@ -235,6 +246,25 @@ def prepare_login_files(login_directory):
                   .drop(columns=["firstName", "lastName"]))
 
         all_logins_merged_with_identified_ids.to_excel(os.path.join(login_directory, "merged_logins_2025-2025_extracted_names.xlsx"), index=False)
+
+
+def merge_files_maganamed(directory1, directory2):
+    # Function used to merge files from "Main" with the rest of the locations for RecordID22
+    target_files = {}
+    for file in os.listdir(directory1):
+        if file.endswith(".csv"):
+            filepath = os.path.join(directory1, file)
+            df = pd.read_csv(filepath, sep=";")
+            target_files[file] = df
+
+    print(target_files.keys())
+    for original_file in os.listdir(directory2):
+        for target_file, target_df in target_files.items():
+            if target_file == original_file:
+                filepath = os.path.join(directory2, original_file)
+                new_df = pd.read_csv(filepath, sep=";")
+                concat = pd.concat([target_df, new_df])
+                concat.to_csv(os.path.join(os.path.dirname(directory2), target_file), sep=";", index=False)
 
 
 # def record_id_31(directory):
