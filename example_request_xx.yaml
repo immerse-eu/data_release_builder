@@ -1,14 +1,17 @@
- files:
-  - item: 1
-    name: ## Add table's name
- 
-  - item: 2
-    name: ## Add table's name
-    variables: ["Add variable1","Add variable2"] ## TO Add/Remove when necessary 
-    
-  - item: 3
-    name:
-        - ## Add table's name
-        - ## Add table's name
-        - ## Add table's name
-        
+files:
+- item: 1
+  table:
+  - ## Add table's name
+- item: 2
+  table:
+  - ## Add table's name
+  interested_variables:
+  - ## Add/Remove when necessary
+  - ## Add/Remove when necessary
+- item: 3
+  table:
+  - ## Add table's name
+  - ## Add table's name
+  - ## Add table's name
+assessment_window:
+- ## Add assessment window
