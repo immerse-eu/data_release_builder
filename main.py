@@ -27,7 +27,7 @@ def read_yaml_file(filename):
 
     for entry in config.get('files', []):
         item = entry.get('item')
-        names = entry.get('name', [])
+        names = entry.get('table', [])
         added_vars = entry.get('variables', [])
         if item:
             item_map[item] = {
@@ -82,7 +82,7 @@ def prepare_tables_to_export(file_map):
             else:
                 cols = get_columns_from_table(table)
                 base_cols = cols[:10]
-                # base_cols = [cols[i] for i in range(7) if i != 1]  # TODO: Use for DMMH
+                # base_cols = [cols[i] for i in range(7) if i != 1]  # TODO: Use only for DMMH
                 filter_cols = [c for c in variables_to_add if c in cols and c not in base_cols]
                 selected_cols = base_cols + filter_cols
                 tables_to_export.append({
@@ -221,7 +221,7 @@ def info_to_yaml(info_txt_file_path):
 
             item_data = {
                 "item": item_number,
-                "name": csv_filenames or []
+                "table": csv_filenames or []
             }
 
             if interested_variables:
@@ -240,6 +240,7 @@ def info_to_yaml(info_txt_file_path):
 
 
 def main():
+
     # Step 1: Generates YAML file from Info.txt
     info_to_yaml(filepath_requirements_id_00)
 
@@ -249,9 +250,9 @@ def main():
     # Step 3: Exports CSV files from Research DB tables.
     export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_00)
 
-    # Step 4: Filtering per assessment window (Baseline, 2-month, 6-month, 12-month, etc).
+    # Step 4: Filtering per assessment window (Screening, Baseline, 2-month, 6-month, and 12-month).
     assessment_window_filtering(assessment_list=assessment_windows, source_path=filepath_release_id_00)
-
+    #
     # Step 5: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_00)
 
@@ -265,7 +266,7 @@ def main():
 
     # Step 8: Pseudo
 
-    # # Step 9: Exports a copy of CSV files without headers.
+    # Step 9: Exports a copy of CSV files without headers.
     remove_header_from_csv(filepath_release_id_00)
 
 
