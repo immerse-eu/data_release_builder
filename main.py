@@ -241,7 +241,7 @@ def info_to_yaml(info_txt_file_path):
 def main():
 
     # Step 1: Generates YAML file from Info.txt
-    # info_to_yaml(filepath_requirements_id_00)
+    info_to_yaml(filepath_requirements_id_00)
 
     # Step 2: Reads requirements from YAML.
     requirements_dict, assessment_windows = read_yaml_file(filepath_requirements_id_00)
