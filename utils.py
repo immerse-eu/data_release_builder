@@ -183,7 +183,7 @@ def get_unique_values_from_columns(df, column1, column2, directory,  new_filenam
     df_unique = df[[column1, column2]].drop_duplicates().reset_index(drop=True)
 
     output_path = os.path.join(directory, new_filename)
-    df_unique.to_excel(output_path, index=False)
+    df_unique.to_csv(output_path, index=False, sep=";")
     return df_unique
 
 
@@ -221,31 +221,38 @@ def merge_name_surname_id_clinicians(df1, df2, path):
     return merged
 
 
-# Logins (TODO: Verify)
 def prepare_login_files(login_directory):
-    id_reference_clinicians = "TherapyDesigner_clinician_IDs_all_sites_(fixed).xlsx"
+    # Logins: Function used to map DMMH clinicians with login files.
+    id_reference_clinicians = "2025-12-02_dmmh_id_map_clinicians_(logins).xlsx"
     all_logins_merged = merge_files(source_path=login_directory, new_filename="merged_logins_2023-2025.xlsx")
-    unique_clinicians = get_unique_values_from_columns(
+
+    get_unique_values_from_columns(
         df=all_logins_merged,
         column1="firstName",
         column2="lastName",
         directory=login_directory,
         new_filename='unique_therapy_design_names.xlsx'
         )
-    if id_reference_clinicians in os.listdir(login_directory):
-        unique_clinicians_with_ids = merge_name_surname_id_clinicians(
-            id_reference_clinicians,
-            unique_clinicians,
-            login_directory
+
+    all_logins_merged = pd.read_excel(os.path.join(login_directory, "merged_logins_2022-2025.xlsx"))
+    unique_clinicians_with_ids = pd.read_excel(os.path.join(login_directory, id_reference_clinicians))
+
+    all_logins_merged_with_identified_ids = (all_logins_merged.merge(
+        unique_clinicians_with_ids,
+        on=["firstName", "lastName"], how="inner")
+              .dropna(subset="clinician_identifier")
+              .drop(columns=["firstName", "lastName"]))
+
+    all_logins_merged_with_identified_ids.to_excel(
+        os.path.join(login_directory, "merged_logins_2022-2025_clinician_ids_v2.xlsx"), index=False)
+
+    get_unique_values_from_columns(
+        df=all_logins_merged_with_identified_ids,
+        column1="clinician_identifier",
+        column2="userId",
+        directory=login_directory,
+        new_filename='2025-12-12_dmmh_id_map_clinicians_v2.csv'
         )
-
-        all_logins_merged_with_identified_ids = (all_logins_merged.merge(
-            unique_clinicians_with_ids,
-            on=["firstName", "lastName"], how="inner")
-                  .dropna(subset="clinician_identifier")
-                  .drop(columns=["firstName", "lastName"]))
-
-        all_logins_merged_with_identified_ids.to_excel(os.path.join(login_directory, "merged_logins_2025-2025_extracted_names.xlsx"), index=False)
 
 
 def merge_files_maganamed(directory1, directory2):
@@ -265,8 +272,3 @@ def merge_files_maganamed(directory1, directory2):
                 new_df = pd.read_csv(filepath, sep=";")
                 concat = pd.concat([target_df, new_df])
                 concat.to_csv(os.path.join(os.path.dirname(directory2), target_file), sep=";", index=False)
-
-
-# def record_id_31(directory):
-#     rename_columns(directory)
-#     filter_and_rename_values_in_df(directory)
