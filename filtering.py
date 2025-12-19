@@ -3,15 +3,20 @@ import pandas as pd
 
 
 def assessment_window_filtering(assessment_list, source_path):
+    '''
+    If "Screening" is not needed, this function must be modified since Screening and Baseline share the same value ...
+    '''
     print(f"\nFiltering by {assessment_list} assessment window ...")
 
     window_map = {
+        'Screening': 'Screening',
         'Baseline': 'Baseline',
         '2-month post-baseline': 'T1',
         '6-month post-baseline': 'T2',
         '12-month post-baseline': 'T3'
     }
     code_map = {
+        'Screening': 0,
         'Baseline': 0,
         '2-month post-baseline': 1,
         '6-month post-baseline': 2,
@@ -52,7 +57,7 @@ def assessment_window_filtering(assessment_list, source_path):
                 continue
 
             filtered_df = df[mask]
-            filename = f"{os.path.splitext(filename)[0]}_filtered.csv"
+            filename = f"{os.path.splitext(filename)[0]}_filter_window.csv"
 
             filtered_df.to_csv(os.path.join(source_path, filename), index=False, sep=';')
             filtered_files[filename] = filtered_df
@@ -73,7 +78,7 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
     print(f"Excluded {len(ids_to_exclude)}")
 
     for filename in os.listdir(source_path):
-        if filename.endswith('.csv') and filename.endswith('_filtered.csv'):
+        if filename.endswith('.csv') and filename.endswith('_filter_window.csv'):
             file_path = os.path.join(source_path, filename)
             df = pd.read_csv(file_path, sep=';')
 
@@ -86,7 +91,7 @@ def filtering_excluded_ids(baseline_ids_path, source_path):
 
             processed_dataframes.append(df)
             filenames.append(filename)
-            filename = f"{filename.replace("filtered", "")}"
+            filename = f"{filename.replace("_filter_window", "_filter_ids")}"
 
             out_path_headers = os.path.join(source_path, f"ITEM_{filename}")
             df.to_csv(out_path_headers, index=False, sep=";")
@@ -104,7 +109,7 @@ def filtering_interesting_ids(baseline_ids_path, source_path):
     print(f"Excluded {len(ids_to_include)}")
 
     for filename in os.listdir(source_path):
-        if filename.endswith('.csv') and filename.endswith('_exclusion_filter.csv'):
+        if filename.endswith('.csv') and filename.startswith('ITEM'):
             file_path = os.path.join(source_path, filename)
             df = pd.read_csv(file_path, sep=';')
 
@@ -117,7 +122,7 @@ def filtering_interesting_ids(baseline_ids_path, source_path):
 
             processed_dataframes.append(df)
             filenames.append(filename)
-            filename = f"ITEM_{filename.replace("_exclusion_filter", "")}"
+            filename = f"{filename.replace("_filter_ids", "")}"
 
             out_path_headers = os.path.join(source_path, filename)
             df.to_csv(out_path_headers, index=False, sep=";")
