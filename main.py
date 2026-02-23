@@ -5,6 +5,7 @@ import sqlite3
 import pandas as pd
 from filtering import assessment_window_filtering, filtering_interesting_ids, filtering_excluded_ids
 from utils import load_config_file, write_config_file, detect_separator
+from pseudo import pseudo_ids_process
 
 
 db_filepath = load_config_file('DB', 'current_db')
@@ -13,7 +14,11 @@ baseline_ids_directory = load_config_file('filters', 'baseline_ids_directory')
 # --- Record release: Record_00 (test)
 filepath_requirements_id_00 = load_config_file('data_requirements', 'input_release_num_00')
 filepath_release_id_00 = load_config_file('data_release', 'output_release_num_00')
-additional_ids_filter_directory_id_00 = load_config_file('filters', 'additional_id_filter_num_22')
+additional_ids_filter_directory_id_22 = load_config_file('filters', 'additional_id_filter_num_22')
+pseudomap_filepath = load_config_file('id_maps', 'pseudo_id_00')
+
+if not os.path.exists(filepath_release_id_00):
+    os.makedirs(filepath_release_id_00)
 
 
 def connect_db():
@@ -240,32 +245,34 @@ def info_to_yaml(info_txt_file_path):
 
 def main():
 
-    # Step 1: Generates YAML file from Info.txt
+    # # Step 1: Generates YAML file from Info.txt.
     info_to_yaml(filepath_requirements_id_00)
 
-    # Step 2: Reads requirements from YAML.
+    # # Step 2: Reads requirements from YAML.
     requirements_dict, assessment_windows = read_yaml_file(filepath_requirements_id_00)
 
-    # Step 3: Exports CSV files from Research DB tables.
+    # # Step 3: Exports CSV files from Research DB tables.
     export_sqlite_tables_to_csv(file_map=requirements_dict, output_dir=filepath_release_id_00)
 
-    # Step 4: Filtering per assessment window (Screening, Baseline, 2-month, 6-month, and 12-month).
+    # # Step 4: Filtering per assessment window (Screening, Baseline, 2-month, 6-month, and 12-month).
     assessment_window_filtering(assessment_list=assessment_windows, source_path=filepath_release_id_00)
-    #
-    # Step 5: Excludes participants whose dropped out from Baseline.
+
+    # # Step 5: Excludes participants whose dropped out from Baseline.
     filtering_excluded_ids(baseline_ids_path=baseline_ids_directory, source_path=filepath_release_id_00)
 
-    # Step 6: Additional participant IDs filtering (depends on each data release).
-    if os.path.isfile(additional_ids_filter_directory_id_00) and additional_ids_filter_directory_id_00.endswith('.xlsx'):
-        filtering_interesting_ids(baseline_ids_path=additional_ids_filter_directory_id_00,
+    # # Step 6: Additional participant IDs filtering (depends on each data release).
+    if os.path.isfile(additional_ids_filter_directory_id_22) and additional_ids_filter_directory_id_22.endswith('.xlsx'):
+        filtering_interesting_ids(baseline_ids_path=additional_ids_filter_directory_id_22,
                                   source_path=filepath_release_id_00)
 
-    # Step 7: Creates a summary of participants (n=379).
+    # # Step 7: Creates a summary of participants (n=379).
     create_participants_summary_from_df(filepath_release_id_00)
 
-    # Step 8: Pseudo
+    # # Step 8: Pseudonym (optional)
+    new_pseudo_path = pseudo_ids_process(pseudomap_filepath, filepath_release_id_00)
 
-    # Step 9: Exports a copy of CSV files without headers.
+    # # Step 9: Exports a copy of CSV files without headers.
+    remove_header_from_csv(new_pseudo_path)
     remove_header_from_csv(filepath_release_id_00)
 
 
