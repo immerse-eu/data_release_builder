@@ -3,7 +3,7 @@
 Pipeline to extract, filter and pseudonymise research datasets.
 
 ## Pre-requiremements: 
-Data definition according to reseach proposal including intested files (phase II) from each IMMERSE data source, interested variables, and assesstment window (Baseline, T1, T2, T3).
+Data definition according to reseach proposal including intested files (phase II) from each IMMERSE data source, interested variables, and assessment window (Baseline, T1, T2, T3).
 
 ## Requirements:
 - Connection to current **Research Database**, 
